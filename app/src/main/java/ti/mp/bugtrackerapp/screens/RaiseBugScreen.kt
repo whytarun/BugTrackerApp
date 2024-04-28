@@ -1,12 +1,10 @@
 package ti.mp.bugtrackerapp.screens
 
-import android.app.Activity
-import android.content.Context
-import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.provider.MediaStore
+import android.util.Base64
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -23,14 +21,17 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.navigation.NavController
-import ti.mp.bugtrackerapp.utils.AppConstants.REQUEST_IMAGE_CAPTURE
+import ti.mp.bugtrackerapp.viewmodels.BugReportViewModel
+import java.io.ByteArrayOutputStream
 import java.io.File
 
 @Composable
-fun RaiseBugScreen(navController: NavController) {
+fun RaiseBugScreen(navController: NavController, viewModel: BugReportViewModel) {
+
     var bugId by remember { mutableStateOf("") }
     var Description by remember { mutableStateOf("") }
     var userImage by remember { mutableStateOf<ImageBitmap?>(null) }
+    var stringImage by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
 
     val takePictureLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success: Boolean ->
@@ -38,6 +39,7 @@ fun RaiseBugScreen(navController: NavController) {
             val uri = Uri.fromFile(File(context.cacheDir, "temp.jpg"))
             val bitmap = BitmapFactory.decodeFile(uri.path)
             val resizedBitmap = getResizedBitmap(bitmap, 250)
+            stringImage = getStringImage(resizedBitmap)
             userImage = resizedBitmap.asImageBitmap()
         }
     }
@@ -51,7 +53,8 @@ fun RaiseBugScreen(navController: NavController) {
     val pickGalleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let {
             val bitmap = MediaStore.Images.Media.getBitmap(context.contentResolver, it)
-            val resizedBitmap = getResizedBitmap(bitmap, 250)
+            val resizedBitmap = getResizedBitmap(bitmap, 500)
+            stringImage = getStringImage(resizedBitmap)
             userImage = resizedBitmap.asImageBitmap()
         }
     }
@@ -116,7 +119,11 @@ fun RaiseBugScreen(navController: NavController) {
         Spacer(modifier = Modifier.height(16.dp))
 
         Button(
-            onClick = { /* Add user logic */ },
+            onClick = {
+                viewModel.submitBugReport(bugId, Description,
+                    stringImage!!
+                )
+             },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(8.dp)
@@ -140,4 +147,11 @@ fun getResizedBitmap(image: Bitmap, maxSize: Int): Bitmap {
         finalWidth = (finalHeight * bitmapRatio).toInt()
     }
     return Bitmap.createScaledBitmap(image, finalWidth, finalHeight, true)
+}
+
+fun getStringImage(bmp: Bitmap): String? {
+    val baos = ByteArrayOutputStream()
+    bmp.compress(Bitmap.CompressFormat.JPEG, 80, baos)
+    val imageBytes = baos.toByteArray()
+    return Base64.encodeToString(imageBytes, Base64.DEFAULT)
 }

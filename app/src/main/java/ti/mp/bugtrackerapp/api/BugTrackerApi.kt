@@ -1,16 +1,18 @@
 package ti.mp.bugtrackerapp.api
 
-import okhttp3.MultipartBody
-import okhttp3.RequestBody
-import retrofit2.http.POST
-import retrofit2.http.Part
 
+import retrofit2.Response
+import retrofit2.http.*
+
+data class ResponseData(val message :String )
 interface BugTrackerApi {
-    @POST("uploadBug")
+
+
+    @GET("/macros/s/AKfycbw6APj-ugXBJgL-dop1JxRx_G1Q16xGuQOIHxrFzkA0c0N8cc6ejmN-OBFFfJGCXNXb/exec")
     suspend fun uploadBug(
-        @Part("bugId") bugId: RequestBody,
-        @Part("title") title: RequestBody,
-        @Part("description") description: RequestBody,
-        @Part image: MultipartBody.Part
-    ): Boolean
+        @Query("action") action: String,
+        @Query("uId") userId: String,
+        @Query("uName") userName: String,
+        @Query("uImage") userImage: String
+    ): ResponseData
 }
