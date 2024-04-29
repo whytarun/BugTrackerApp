@@ -22,6 +22,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.navigation.NavController
+import ti.mp.bugtrackerapp.utils.ImageUtils.getRealPathFromURI
+import ti.mp.bugtrackerapp.utils.ImageUtils.getResizedBitmap
+import ti.mp.bugtrackerapp.utils.ImageUtils.getStringImage
 import ti.mp.bugtrackerapp.viewmodels.BugReportViewModel
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -34,39 +37,46 @@ fun RaiseBugScreen(navController: NavController, viewModel: BugReportViewModel) 
     var userImage by remember { mutableStateOf<ImageBitmap?>(null) }
     var stringImage by remember { mutableStateOf<String?>(null) }
     var imageUri by remember { mutableStateOf<Uri?>(null) }
-    var   file  by remember { mutableStateOf<File?>(null) }
+    var file by remember { mutableStateOf<File?>(null) }
     val isLoading by viewModel.isLoading.observeAsState(initial = false)
+    val response by viewModel.response.observeAsState()
+    var showMessage by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
 
-    val takePictureLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success: Boolean ->
-        if (success) {
-            val uri = Uri.fromFile(File(context.cacheDir, "temp.jpg"))
-            imageUri = uri
-            val bitmap = BitmapFactory.decodeFile(uri.path)
-            val resizedBitmap = getResizedBitmap(bitmap, 250)
-            stringImage = getStringImage(resizedBitmap)
-            userImage = resizedBitmap.asImageBitmap()
+    // Take picture launcher
+    val takePictureLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success: Boolean ->
+            if (success) {
+                val uri = Uri.fromFile(File(context.cacheDir, "temp.jpg"))
+                imageUri = uri
+                val bitmap = BitmapFactory.decodeFile(uri.path)
+                val resizedBitmap = getResizedBitmap(bitmap, 250)
+                stringImage = getStringImage(resizedBitmap)
+                userImage = resizedBitmap.asImageBitmap()
+            }
         }
-    }
 
+    // Photo URI
     val photoUri = FileProvider.getUriForFile(
         context,
         "${context.packageName}.provider",
         File(context.cacheDir, "temp.jpg")
     )
 
-    val pickGalleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        uri?.let {
-            val bitmap = MediaStore.Images.Media.getBitmap(context.contentResolver, it)
-            imageUri = it
-            val realPath = getRealPathFromURI(context, it)
-             file = File(realPath)
-            val resizedBitmap = getResizedBitmap(bitmap, 250)
-            stringImage = getStringImage(resizedBitmap)
-            userImage = resizedBitmap.asImageBitmap()
+     // Pick gallery launcher
+    val pickGalleryLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+            uri?.let {
+                val bitmap = MediaStore.Images.Media.getBitmap(context.contentResolver, it)
+                imageUri = it
+                val realPath = getRealPathFromURI(context, it)
+                file = File(realPath)
+                val resizedBitmap = getResizedBitmap(bitmap, 250)
+                stringImage = getStringImage(resizedBitmap)
+                userImage = resizedBitmap.asImageBitmap()
+            }
         }
-    }
 
     Column(
         modifier = Modifier
@@ -114,6 +124,26 @@ fun RaiseBugScreen(navController: NavController, viewModel: BugReportViewModel) 
         ) {
             Text("Pick from Gallery")
         }
+
+        @Composable
+        if (showMessage) {
+            Snackbar(
+                action = {
+                    TextButton(onClick = { showMessage = false }) {
+                        Text("Dismiss")
+                    }
+                }
+            ) {
+                Text(text = "Bug report submitted successfully: $response")
+            }
+        }
+
+        LaunchedEffect(response) {
+            if (!response.isNullOrBlank()) {
+                showMessage = true
+            }
+        }
+
         if (isLoading) {
             Box(
                 modifier = Modifier
@@ -142,11 +172,12 @@ fun RaiseBugScreen(navController: NavController, viewModel: BugReportViewModel) 
         Button(
             onClick = {
                 file?.let {
-                    viewModel.addUser(bugId, Description,
+                    viewModel.submitBugReport(
+                        bugId, Description,
                         stringImage!!
                     )
                 }
-             },
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(8.dp)
@@ -154,40 +185,10 @@ fun RaiseBugScreen(navController: NavController, viewModel: BugReportViewModel) 
             Text("Raise Bug")
         }
     }
+
 }
 
-fun getResizedBitmap(image: Bitmap, maxSize: Int): Bitmap {
-    val width = image.width
-    val height = image.height
-    val bitmapRatio = width.toFloat() / height.toFloat()
-    val finalWidth: Int
-    val finalHeight: Int
-    if (bitmapRatio > 1) {
-        finalWidth = maxSize
-        finalHeight = (finalWidth / bitmapRatio).toInt()
-    } else {
-        finalHeight = maxSize
-        finalWidth = (finalHeight * bitmapRatio).toInt()
-    }
-    return Bitmap.createScaledBitmap(image, finalWidth, finalHeight, true)
-}
 
-fun getStringImage(bmp: Bitmap): String? {
-    val baos = ByteArrayOutputStream()
-    bmp.compress(Bitmap.CompressFormat.JPEG, 100, baos)
-    val imageBytes = baos.toByteArray()
-    return Base64.encodeToString(imageBytes, Base64.DEFAULT)
-}
 
-fun getRealPathFromURI(context: Context, contentUri: Uri): String? {
-    var cursor: Cursor? = null
-    return try {
-        val proj = arrayOf(MediaStore.Images.Media.DATA)
-        cursor = context.contentResolver.query(contentUri, proj, null, null, null)
-        val columnIndex = cursor?.getColumnIndexOrThrow(MediaStore.Images.Media.DATA)
-        cursor?.moveToFirst()
-        columnIndex?.let { cursor?.getString(it) }
-    } finally {
-        cursor?.close()
-    }
-}
+
+

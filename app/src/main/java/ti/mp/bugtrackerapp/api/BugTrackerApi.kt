@@ -7,14 +7,14 @@ import retrofit2.http.*
 import ti.mp.bugtrackerapp.utils.AppConstants
 
 interface BugTrackerApi {
-
+    // POST request to submit a bug report
     @POST(AppConstants.APP_SCRIPT_WEB_APP_URL)
-    fun addUser(
-        @Query("action") action: String,
-        @Query("uBugId") userId: String,
-        @Query("uDescription") userName: String,
-        @Query("uImage") userImage: String,
-        listener: Response.Listener<String>,
-        errorListener: Response.ErrorListener
+    fun submitBugReport(
+        @Query("action") action: String,                 // Action parameter for the request
+        @Query("uBugId") userId: String,                 // Bug ID of the report
+        @Query("uDescription") userName: String,        // Description of the bug
+        @Query("uImage") userImage: String,            // Image of the bug (as string)
+        listener: Response.Listener<String>,          // Success listener for the response
+        errorListener: Response.ErrorListener        // Error listener for the response
     ): StringRequest
 }

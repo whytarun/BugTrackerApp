@@ -23,6 +23,8 @@ fun MainScreen(navController: NavController) {
     }
 }
 
+
+// submit bug report
 @Composable
 fun RaiseBugButton(onClick: () -> Unit) {
     Button(
@@ -35,6 +37,7 @@ fun RaiseBugButton(onClick: () -> Unit) {
     }
 }
 
+// view bug report
 @Composable
 fun ViewBugReportsButton(onClick: () -> Unit) {
     Button(
