@@ -81,6 +81,12 @@ dependencies {
 
     implementation 'com.squareup.moshi:moshi:1.15.0'
 
+    def volley_version ="1.2.1"
+    implementation "com.android.volley:volley:$volley_version"
+
+    def compose_version ="1.0.0"
+    implementation "androidx.compose.runtime:runtime-livedata:$compose_version"
+
 
 
     def nav_version = "2.7.7"

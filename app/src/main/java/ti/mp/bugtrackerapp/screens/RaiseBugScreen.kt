@@ -1,5 +1,7 @@
 package ti.mp.bugtrackerapp.screens
 
+import android.content.Context
+import android.database.Cursor
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -9,10 +11,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.Button
-import androidx.compose.material.OutlinedTextField
-import androidx.compose.material.Text
+import androidx.compose.material.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
@@ -32,11 +33,16 @@ fun RaiseBugScreen(navController: NavController, viewModel: BugReportViewModel) 
     var Description by remember { mutableStateOf("") }
     var userImage by remember { mutableStateOf<ImageBitmap?>(null) }
     var stringImage by remember { mutableStateOf<String?>(null) }
+    var imageUri by remember { mutableStateOf<Uri?>(null) }
+    var   file  by remember { mutableStateOf<File?>(null) }
+    val isLoading by viewModel.isLoading.observeAsState(initial = false)
+
     val context = LocalContext.current
 
     val takePictureLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success: Boolean ->
         if (success) {
             val uri = Uri.fromFile(File(context.cacheDir, "temp.jpg"))
+            imageUri = uri
             val bitmap = BitmapFactory.decodeFile(uri.path)
             val resizedBitmap = getResizedBitmap(bitmap, 250)
             stringImage = getStringImage(resizedBitmap)
@@ -53,7 +59,10 @@ fun RaiseBugScreen(navController: NavController, viewModel: BugReportViewModel) 
     val pickGalleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let {
             val bitmap = MediaStore.Images.Media.getBitmap(context.contentResolver, it)
-            val resizedBitmap = getResizedBitmap(bitmap, 500)
+            imageUri = it
+            val realPath = getRealPathFromURI(context, it)
+             file = File(realPath)
+            val resizedBitmap = getResizedBitmap(bitmap, 250)
             stringImage = getStringImage(resizedBitmap)
             userImage = resizedBitmap.asImageBitmap()
         }
@@ -105,6 +114,18 @@ fun RaiseBugScreen(navController: NavController, viewModel: BugReportViewModel) 
         ) {
             Text("Pick from Gallery")
         }
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .wrapContentSize(Alignment.Center)
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(90.dp),
+                    color = MaterialTheme.colors.primary
+                )
+            }
+        }
 
         userImage?.let {
             Image(
@@ -120,9 +141,11 @@ fun RaiseBugScreen(navController: NavController, viewModel: BugReportViewModel) 
 
         Button(
             onClick = {
-                viewModel.submitBugReport(bugId, Description,
-                    stringImage!!
-                )
+                file?.let {
+                    viewModel.addUser(bugId, Description,
+                        stringImage!!
+                    )
+                }
              },
             modifier = Modifier
                 .fillMaxWidth()
@@ -151,7 +174,20 @@ fun getResizedBitmap(image: Bitmap, maxSize: Int): Bitmap {
 
 fun getStringImage(bmp: Bitmap): String? {
     val baos = ByteArrayOutputStream()
-    bmp.compress(Bitmap.CompressFormat.JPEG, 80, baos)
+    bmp.compress(Bitmap.CompressFormat.JPEG, 100, baos)
     val imageBytes = baos.toByteArray()
     return Base64.encodeToString(imageBytes, Base64.DEFAULT)
+}
+
+fun getRealPathFromURI(context: Context, contentUri: Uri): String? {
+    var cursor: Cursor? = null
+    return try {
+        val proj = arrayOf(MediaStore.Images.Media.DATA)
+        cursor = context.contentResolver.query(contentUri, proj, null, null, null)
+        val columnIndex = cursor?.getColumnIndexOrThrow(MediaStore.Images.Media.DATA)
+        cursor?.moveToFirst()
+        columnIndex?.let { cursor?.getString(it) }
+    } finally {
+        cursor?.close()
+    }
 }
