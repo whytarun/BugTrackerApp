@@ -22,6 +22,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.navigation.NavController
+import ti.mp.bugtrackerapp.utils.GetImageContract
 import ti.mp.bugtrackerapp.utils.ImageUtils.getRealPathFromURI
 import ti.mp.bugtrackerapp.utils.ImageUtils.getResizedBitmap
 import ti.mp.bugtrackerapp.utils.ImageUtils.getStringImage
@@ -78,6 +79,10 @@ fun RaiseBugScreen(navController: NavController, viewModel: BugReportViewModel) 
             }
         }
 
+    fun handleImageSelected(uri: Uri) {
+        imageUri = uri
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -102,6 +107,7 @@ fun RaiseBugScreen(navController: NavController, viewModel: BugReportViewModel) 
                 .fillMaxWidth()
                 .padding(8.dp)
         )
+        ImagePicker(onImageSelected = { handleImageSelected(it) })
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -182,10 +188,18 @@ fun RaiseBugScreen(navController: NavController, viewModel: BugReportViewModel) 
                 .fillMaxWidth()
                 .padding(8.dp)
         ) {
-            Text("Raise Bug")
+            Text("Submit Bug Report")
         }
     }
-
+}
+@Composable
+fun ImagePicker(onImageSelected: (Uri) -> Unit) {
+    val getContent = rememberLauncherForActivityResult(GetImageContract()) { uri ->
+        uri?.let { onImageSelected(it) }
+    }
+    Button(onClick = { getContent.launch("image/*") }) {
+        Text("Select Image")
+    }
 }
 
 
